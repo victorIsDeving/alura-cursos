@@ -7,10 +7,8 @@
 
 Toda a parte do *mysql* está encápsulada dentro do bloco que começa na linha 18
     
-    config.vm.define "mysqldb" do |mysql|`
-        
-    ...
-        
+    config.vm.define "mysqldb" do |mysql|`  
+        ...
     end
 
 Tudo que era do *mysql* e tinha como começo da linha o `config`, agora começa com *mysql* (o que vem dentro do `||`), dá pra ver esa diferença comparando com o arquivo **Vagrantfile** da máquina virtual da pasta ***bionic***
