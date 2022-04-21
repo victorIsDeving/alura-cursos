@@ -24,7 +24,9 @@ Antes da criação da máquina virtual, ao rodar um `vagrant status`, ele já va
 ![Primeiro `vagrant up`, antes da criação da máquina virtual em si](../assets/readme-images/bionic-multi-machine/vagrant-status.png)
 
 > Atenção na linha do final
->> For more information about a specific VM, run `vagrant status NAME`.  
+>
+>> For more information about a specific VM, run `vagrant status NAME`.
+>
 > o nome que damos pode ser usado para especificar os comandos do `vagrant` para uma máquina específica
 
 Com o comando `vagrant ssh-config` dá para ver as especificações de cada máquina, funcionando em portas diferentes
