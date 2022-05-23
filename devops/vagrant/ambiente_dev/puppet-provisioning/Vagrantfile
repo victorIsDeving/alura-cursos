@@ -1,0 +1,65 @@
+#variável script para ser usada no provisionamente pelo shell, a \ equivale a um enter
+$script_mysql = <<-SCRIPT
+    apt-get update && \ 
+    apt-get install -y mysql-server-5.7 && \
+    mysql -e "create user 'phpuser'@'%' identified by 'pass';" 
+SCRIPT
+#apt-get primeiro como uma boa prática, comandos automaticamente executados como sudo (privilégios de adm)
+#não colocar nada depois do \, é um sinal que indica o fim de um comando e para executar o próximo em outra linha
+#configurar o MySQL, cria um banco de dados e um usuário padrão
+
+Vagrant.configure("2") do |config|
+    # --- linha que seleciona o ubuntu no site do vagrant cloud
+    config.vm.box = "ubuntu/bionic64"
+    # ambas as máquinas virtuais, mysql e phpweb, serão baseadas nessa versão específica do ubuntu
+    
+    # --- linha para evitar o problema do SSL certificate problem
+    config.vm.box_download_insecure = true
+    
+    config.vm.define "mysqldb" do |mysql|
+        # # --- configuração de porta para acessar a máquina virtual pelo navegador usando o nginx
+        # mysql.vm.network "forwarded_port", guest: 80, host: 8089
+        
+        ##--- configurações para servidor privado da máquina virtual, só poderá ser acessado pelo windows host da máquina virtual
+        # config.vm.network "private_network", ip: "192.168.50.4"
+        # config.vm.network "private_network", type: "dhcp" #servidor criado usando um dhcp próprio do VirtualBoxMachine
+        
+        # --- configurações de rede pública, assim computadores ligados na mesma rede podem acessar essa máquina virtual
+        mysql.vm.network "public_network", ip: "192.168.0.24"
+
+        ## --- configurações de provisionamento de shell, vai mostrar no shell da host os comandos executados no shell da máquina virtual
+        #config.vm.provision "shell", inline: "echo Hello, World"
+        #config.vm.provision "shell", inline: "echo Hello, Provisioning World >> hello.txt" 
+            #vai mandar o resultado do echo Hello, World para um arquivo chamado hello.txt, que estará dentro da máquina virtual, não do host
+            # resultado sai como uma nova linha no arquivo especificado ou cria o arquivo especificado
+        #  executar comandos Batch-Shell através dessas configurações, nos possibilitando mais recursos sofisticados como a instalação do Nginx ou MySQL por exemplo
+        mysql.vm.provision "shell", inline: "cat /configs/id_bionic.pub >> .ssh/authorized_keys" # vai copiar a chave publica para a pasta das authorized keys
+        # provisionando o my sql na máquina virtual
+        mysql.vm.provision "shell", inline: $script_mysql
+        # configurando a instalação do mysql, para ficar acessível por mais de um computador
+        mysql.vm.provision "shell", inline: "cat /configs/mysqld.cnf > /etc/mysql/mysql.conf.d/mysqld.cnf" #o sinal > substitui o conteúdo, o sinal >> adiciona o conteúdo
+        # reiniciar o mysql depois da mudança das configurações
+        mysql.vm.provision "shell", inline: "service mysql restart"
+        
+        ## --- criando na máquina virtual uma pasta sincronizada com uma pasta do host
+        mysql.vm.synced_folder "./configs", "/configs" #ponto para a pasta atual
+        mysql.vm.synced_folder ".", "/vagrant", disabled:true #desabilita a sincronização entre host e VM de uma pasta específica
+        #Logada a máquina virtual, podemos acessar o host pela pasta /vagrant. Por padrão, é compartilhado todo diretório onde se encontra o Vagrantfile
+    end
+    
+    config.vm.define "phpweb" do |phpweb|
+        phpweb.vm.network "forwarded_port", guest:8888, host:8888
+        phpweb.vm.network "public_network", ip: "192.168.1.25" #diferença no último dígito da porta
+        
+        # instalando o Puppet na máquina virtual
+        phpweb.vm.provision "shell", inline: "apt-get update && apt-get install -y puppet"
+
+        # sub bloco para usar o Puppet atraves do Vagrant
+        phpweb.vm.provision "puppet" do |puppet| 
+            puppet.manifests_path = "./configs/manifests"
+            puppet.manifest_file = "phpweb.pp"
+        end
+
+    end
+
+    end
